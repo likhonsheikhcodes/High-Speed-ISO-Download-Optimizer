@@ -5,30 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>High-Speed ISO Download Optimizer</title>
     <style>
+        :root {
+            --bg-color: #0a0e0a;
+            --text-color: #00ff00;
+            --accent-color: #00aa00;
+            --secondary-bg: #0f1a0f;
+            --tertiary-bg: #1a2a1a;
+            --error-color: #ff4444;
+            --warning-color: #ffaa00;
+        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            max-width: 800px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-            background: #f5f5f5;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
         }
         .container {
-            background: white;
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--secondary-bg);
             padding: 2rem;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 0 10px rgba(0,255,0,0.1);
         }
         .progress-container {
             margin: 1rem 0;
-            border: 1px solid #e0e0e0;
+            border: 1px solid var(--accent-color);
             padding: 1.5rem;
             border-radius: 8px;
-            background: #fafafa;
+            background: var(--tertiary-bg);
         }
         .progress-bar {
             width: 100%;
             height: 24px;
-            background-color: #f0f0f0;
+            background-color: var(--secondary-bg);
             border-radius: 12px;
             overflow: hidden;
             margin: 10px 0;
@@ -36,51 +48,50 @@
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #45a049);
+            background: linear-gradient(90deg, var(--accent-color), #008000);
             width: 0%;
             transition: width 0.2s ease;
         }
         .status {
             margin: 10px 0;
-            color: #444;
+            color: var(--text-color);
             font-size: 14px;
         }
         .speed-meter {
             font-weight: bold;
-            color: #2196F3;
+            color: var(--accent-color);
         }
         button {
-            background: linear-gradient(90deg, #2196F3, #1976D2);
-            color: white;
+            background: var(--accent-color);
+            color: var(--bg-color);
             padding: 12px 24px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
             transition: all 0.3s ease;
+            margin: 5px;
         }
         button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(33,150,243,0.3);
+            background: var(--text-color);
         }
         button:disabled {
-            background: #cccccc;
+            background: #1a3a1a;
             cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
         .url-input {
-            width: calc(100% - 150px);
+            width: calc(100% - 20px);
             padding: 12px;
-            margin-right: 10px;
-            border: 2px solid #e0e0e0;
+            margin: 10px 0;
+            border: 2px solid var(--accent-color);
             border-radius: 6px;
             font-size: 14px;
-            transition: border-color 0.3s ease;
+            background: var(--tertiary-bg);
+            color: var(--text-color);
         }
         .url-input:focus {
-            border-color: #2196F3;
             outline: none;
+            box-shadow: 0 0 5px var(--accent-color);
         }
         .chunk-progress {
             display: flex;
@@ -91,20 +102,20 @@
         .chunk {
             width: 15px;
             height: 15px;
-            background-color: #f0f0f0;
+            background-color: var(--secondary-bg);
             border-radius: 2px;
             transition: background-color 0.3s ease;
-            position: relative;
         }
         .chunk.downloaded {
-            background-color: #4CAF50;
+            background-color: var(--accent-color);
         }
         .chunk.downloading {
-            background-color: #2196F3;
+            background-color: var(--text-color);
             animation: pulse 1s infinite;
         }
         .controls {
             display: flex;
+            flex-wrap: wrap;
             gap: 10px;
             margin: 15px 0;
         }
@@ -114,30 +125,72 @@
             gap: 15px;
             margin: 15px 0;
             padding: 15px;
-            background: #f8f9fa;
+            background: var(--tertiary-bg);
             border-radius: 6px;
         }
         .stat-item {
             padding: 10px;
-            background: white;
+            background: var(--secondary-bg);
             border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 0 5px rgba(0,255,0,0.1);
+        }
+        .error {
+            color: var(--error-color);
+            background-color: rgba(255, 0, 0, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .warning {
+            color: var(--warning-color);
+            background-color: rgba(255, 165, 0, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        #dark-mode-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 24px;
         }
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.6; }
             100% { opacity: 1; }
         }
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
+    <button id="dark-mode-toggle">🌓</button>
     <div class="container">
         <h1>High-Speed ISO Download Optimizer</h1>
         <div>
-            <input type="text" id="url-input" class="url-input" placeholder="Enter ISO URL">
-            <button id="start-download">Start Download</button>
-            <button id="pause-resume-download" style="display:none;">Pause Download</button>
+            <input type="text" id="url-input" class="url-input" placeholder="Enter ISO or video URL">
+            <div class="controls">
+                <button id="start-download">Start Download</button>
+                <button id="pause-resume-download" style="display:none;">Pause Download</button>
+                <button id="schedule-download">Schedule Download</button>
+                <button id="check-integrity" style="display:none;">Check Integrity</button>
+            </div>
         </div>
+        <div id="error-container" class="error" style="display:none;"></div>
+        <div id="warning-container" class="warning" style="display:none;"></div>
         <div class="progress-container">
             <div class="stats">
                 <div class="stat-item">
@@ -152,6 +205,10 @@
                     <div>Estimated Time</div>
                     <div class="eta-meter">--:--</div>
                 </div>
+                <div class="stat-item">
+                    <div>Downloaded</div>
+                    <div class="downloaded-size">0 MB</div>
+                </div>
             </div>
             <div class="progress-bar">
                 <div class="progress-fill"></div>
@@ -164,8 +221,8 @@
     <script>
         class DownloadOptimizer {
             constructor() {
-                this.chunkSize = 5 * 1024 * 1024; // 5MB chunks for more parallel downloads
-                this.maxParallelDownloads = 8; // Increased parallel downloads
+                this.chunkSize = 5 * 1024 * 1024; // 5MB chunks
+                this.maxParallelDownloads = 16;
                 this.chunks = [];
                 this.activeDownloads = 0;
                 this.downloadedSize = 0;
@@ -173,9 +230,12 @@
                 this.abortController = null;
                 this.startTime = null;
                 this.speedSamples = [];
-                this.retryAttempts = 3;
+                this.retryAttempts = 5;
                 this.retryDelay = 1000;
                 this.paused = false;
+                this.isVideoDownload = false;
+                this.scheduledTime = null;
+                this.resumeData = null;
             }
 
             async startDownload(url) {
@@ -184,14 +244,27 @@
                     this.startTime = Date.now();
                     this.abortController = new AbortController();
 
+                    this.isVideoDownload = this.isVideoUrl(url);
+                    if (this.isVideoDownload) {
+                        return this.startVideoDownload(url);
+                    }
+
                     const supportsRange = await this.checkRangeSupport(url);
                     if (!supportsRange) {
-                        this.updateStatus('Server does not support range requests. Falling back to single download.');
+                        this.showWarning('Server does not support range requests. Falling back to single download.');
                         return this.singleDownload(url);
                     }
 
-                    const response = await fetch(url, { method: 'HEAD' });
+                    const response = await fetch(url, { 
+                        method: 'HEAD',
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
                     this.totalSize = parseInt(response.headers.get('content-length'), 10);
+
+                    if (!this.totalSize) {
+                        throw new Error('Unable to determine file size. The server might not support content-length header.');
+                    }
 
                     const numberOfChunks = Math.ceil(this.totalSize / this.chunkSize);
                     this.initializeChunkDisplay(numberOfChunks);
@@ -212,7 +285,49 @@
                     this.startSpeedometer();
                     await this.downloadChunksOptimized(url);
                 } catch (error) {
-                    this.updateStatus(`Error: ${error.message}`);
+                    this.handleError(error);
+                }
+            }
+
+            isVideoUrl(url) {
+                const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
+                return videoExtensions.some(ext => url.toLowerCase().endsWith(ext));
+            }
+
+            async startVideoDownload(url) {
+                this.updateStatus('Initiating video download...');
+                try {
+                    const response = await fetch(url, {
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const reader = response.body.getReader();
+                    const contentLength = +response.headers.get('Content-Length');
+
+                    let receivedLength = 0;
+                    const chunks = [];
+
+                    while(true) {
+                        const {done, value} = await reader.read();
+
+                        if (done) {
+                            break;
+                        }
+
+                        chunks.push(value);
+                        receivedLength += value.length;
+
+                        this.downloadedSize = receivedLength;
+                        this.totalSize = contentLength;
+                        this.updateProgress();
+                    }
+
+                    const blob = new Blob(chunks);
+                    this.saveFile(blob, 'video');
+                } catch (error) {
+                    this.handleError(error);
                 }
             }
 
@@ -225,16 +340,21 @@
                 if (this.speedInterval) {
                     clearInterval(this.speedInterval);
                 }
+                this.hideError();
+                this.hideWarning();
             }
 
             async checkRangeSupport(url) {
                 try {
                     const response = await fetch(url, {
                         method: 'HEAD',
-                        signal: this.abortController.signal
+                        signal: this.abortController.signal,
+                        mode: 'cors',
+                        credentials: 'omit'
                     });
                     return response.headers.get('accept-ranges') === 'bytes';
                 } catch (error) {
+                    this.handleError(error);
                     return false;
                 }
             }
@@ -260,13 +380,12 @@
                         this.updateProgress(index);
                     } catch (error) {
                         chunk.downloading = false;
-                        this.updateStatus(`Chunk ${index} failed: ${error.message}`);
+                        this.handleError(error, `Chunk ${index} failed`);
                     }
 
                     this.activeDownloads--;
                     this.updateConnectionsMeter();
 
-                    // Process next chunk from queue if available
                     if (downloadQueue.length > 0) {
                         const nextChunk = downloadQueue.shift();
                         const promise = downloadChunk(nextChunk.chunk, nextChunk.index);
@@ -274,13 +393,11 @@
                         promise.finally(() => activePromises.delete(promise));
                     }
 
-                    // Check if download is complete
                     if (this.chunks.every(c => c.downloaded)) {
                         this.combineAndDownload();
                     }
                 };
 
-                // Initialize download queue and start initial batch
                 this.chunks.forEach((chunk, index) => {
                     if (index < this.maxParallelDownloads) {
                         const promise = downloadChunk(chunk, index);
@@ -291,7 +408,6 @@
                     }
                 });
 
-                // Wait for all downloads to complete
                 while (activePromises.size > 0 || downloadQueue.length > 0) {
                     await Promise.race([...activePromises]);
                 }
@@ -304,7 +420,9 @@
                             Range: `bytes=${chunk.start}-${chunk.end}`,
                             'Cache-Control': 'no-cache'
                         },
-                        signal: this.abortController.signal
+                        signal: this.abortController.signal,
+                        mode: 'cors',
+                        credentials: 'omit'
                     });
 
                     if (!response.ok) {
@@ -315,7 +433,7 @@
                 } catch (error) {
                     if (error.name === 'AbortError') throw error;
                     if (attempt < this.retryAttempts) {
-                        await new Promise(resolve => setTimeout(resolve, this.retryDelay * (attempt + 1)));
+                        await new Promise(resolve => setTimeout(resolve, this.retryDelay * Math.pow(2, attempt)));
                         return this.downloadChunkWithRetry(url, chunk, attempt + 1);
                     }
                     throw error;
@@ -328,11 +446,9 @@
                     const elapsedSeconds = (currentTime - this.startTime) / 1000;
                     const speedMBps = (this.downloadedSize / (1024 * 1024)) / elapsedSeconds;
 
-                    // Update speed meter
                     document.querySelector('.speed-meter').textContent =
                         `${speedMBps.toFixed(2)} MB/s`;
 
-                    // Update ETA
                     if (speedMBps > 0) {
                         const remainingBytes = this.totalSize - this.downloadedSize;
                         const remainingSeconds = remainingBytes / (speedMBps * 1024 * 1024);
@@ -341,6 +457,9 @@
                         document.querySelector('.eta-meter').textContent =
                             `${minutes}:${seconds.toString().padStart(2, '0')}`;
                     }
+
+                    document.querySelector('.downloaded-size').textContent =
+                        this.formatSize(this.downloadedSize);
                 };
 
                 this.speedInterval = setInterval(updateSpeed, 1000);
@@ -360,16 +479,17 @@
                 clearInterval(this.speedInterval);
             }
 
-            saveFile(blob) {
+            saveFile(blob, type = 'iso') {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'windows.iso';
+                a.download = type === 'iso' ? 'download.iso' : 'video.mp4';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 this.updateStatus('Download complete!');
+                document.getElementById('check-integrity').style.display = 'inline-block';
             }
 
             updateProgress(chunkIndex = -1) {
@@ -429,12 +549,100 @@
                 this.updateStatus('Download paused');
                 this.abortController.abort();
                 clearInterval(this.speedInterval);
+                this.saveResumeData();
             }
 
             resume() {
                 this.paused = false;
                 this.updateStatus('Resuming download...');
-                this.startDownload(urlInput.value.trim());
+                this.loadResumeData();
+                this.startDownload(document.getElementById('url-input').value.trim());
+            }
+
+            saveResumeData() {
+                this.resumeData = {
+                    chunks: this.chunks,
+                    downloadedSize: this.downloadedSize,
+                    totalSize: this.totalSize
+                };
+                localStorage.setItem('resumeData', JSON.stringify(this.resumeData));
+            }
+
+            loadResumeData() {
+                const savedData = localStorage.getItem('resumeData');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    this.chunks = parsedData.chunks;
+                    this.downloadedSize = parsedData.downloadedSize;
+                    this.totalSize = parsedData.totalSize;
+                    this.initializeChunkDisplay(this.chunks.length);
+                    this.chunks.forEach((chunk, index) => {
+                        if (chunk.downloaded) {
+                            this.updateChunkStatus(index, 'downloaded');
+                        }
+                    });
+                    this.updateProgress();
+                }
+            }
+
+            scheduleDownload(dateTime) {
+                this.scheduledTime = dateTime;
+                const now = new Date();
+                const timeUntilDownload = this.scheduledTime - now;
+
+                if (timeUntilDownload <= 0) {
+                    this.startDownload(document.getElementById('url-input').value.trim());
+                } else {
+                    this.updateStatus(`Download scheduled for ${this.scheduledTime.toLocaleString()}`);
+                    setTimeout(() => {
+                        this.startDownload(document.getElementById('url-input').value.trim());
+                    }, timeUntilDownload);
+                }
+            }
+
+            async checkIntegrity() {
+                this.updateStatus('Checking file integrity...');
+                const fileHandle = await window.showOpenFilePicker();
+                const file = await fileHandle[0].getFile();
+                const arrayBuffer = await file.arrayBuffer();
+                const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                this.updateStatus(`File integrity check complete. SHA-256: ${hashHex}`);
+            }
+
+            handleError(error, context = '') {
+                console.error(`${context}: ${error.message}`);
+                this.showError(`Error: ${context} ${error.message}`);
+                if (error.name === 'AbortError') {
+                    return;
+                }
+                // Implement more sophisticated error handling here
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    this.showWarning('Network error. Check your internet connection and try again.');
+                } else if (error.name === 'QuotaExceededError') {
+                    this.showWarning('Storage quota exceeded. Try clearing some space or using a different browser.');
+                }
+            }
+
+            showError(message) {
+                const errorContainer = document.getElementById('error-container');
+                errorContainer.textContent = message;
+                errorContainer.style.display = 'block';
+            }
+
+            hideError() {
+                document.getElementById('error-container').style.display = 'none';
+            }
+
+            showWarning(message) {
+                const warningContainer = document.getElementById('warning-container');
+                warningContainer.textContent = message;
+                warningContainer.style.display = 'block';
+            }
+
+            hideWarning() {
+                document.getElementById('warning-container').style.display = 'none';
             }
         }
 
@@ -442,12 +650,15 @@
         const downloadOptimizer = new DownloadOptimizer();
         const startButton = document.getElementById('start-download');
         const pauseResumeButton = document.getElementById('pause-resume-download');
+        const scheduleButton = document.getElementById('schedule-download');
+        const checkIntegrityButton = document.getElementById('check-integrity');
         const urlInput = document.getElementById('url-input');
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
 
         startButton.addEventListener('click', async () => {
             const url = urlInput.value.trim();
             if (!url) {
-                downloadOptimizer.updateStatus('Please enter a valid URL');
+                downloadOptimizer.showWarning('Please enter a valid URL');
                 return;
             }
 
@@ -458,7 +669,7 @@
                 pauseResumeButton.textContent = 'Pause Download';
                 await downloadOptimizer.startDownload(url);
             } catch (error) {
-                downloadOptimizer.updateStatus(`Error: ${error.message}`);
+                downloadOptimizer.handleError(error, 'Start download');
             } finally {
                 startButton.disabled = false;
                 startButton.textContent = 'Start Download';
@@ -474,6 +685,19 @@
                 downloadOptimizer.pause();
                 pauseResumeButton.textContent = 'Resume Download';
             }
+        });
+
+        scheduleButton.addEventListener('click', () => {
+            const scheduledTime = new Date(prompt('Enter the date and time to start the download (YYYY-MM-DD HH:MM):'));
+            if (scheduledTime && !isNaN(scheduledTime.getTime())) {
+                downloadOptimizer.scheduleDownload(scheduledTime);
+            } else {
+                downloadOptimizer.showWarning('Invalid date/time format. Please try again.');
+            }
+        });
+
+        checkIntegrityButton.addEventListener('click', () => {
+            downloadOptimizer.checkIntegrity();
         });
 
         // Set default Windows 11 ISO URL
@@ -493,6 +717,12 @@
                 event.returnValue = 'Download is in progress. Are you sure you want to leave?';
                 return event.returnValue;
             }
+        });
+
+        // Dark mode toggle
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            darkModeToggle.textContent = document.body.classList.contains('dark-mode') ? '🌞' : '🌓';
         });
     </script>
 </body>
