@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High-Speed ISO Download Optimizer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .progress-container {
+            margin: 1rem 0;
+            border: 1px solid #e0e0e0;
+            padding: 1.5rem;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background-color: #f0f0f0;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 10px 0;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+        .status {
+            margin: 10px 0;
+            color: #444;
+            font-size: 14px;
+        }
+        .speed-meter {
+            font-weight: bold;
+            color: #2196F3;
+        }
+        button {
+            background: linear-gradient(90deg, #2196F3, #1976D2);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(33,150,243,0.3);
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .url-input {
+            width: calc(100% - 150px);
+            padding: 12px;
+            margin-right: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        .url-input:focus {
+            border-color: #2196F3;
+            outline: none;
+        }
+        .chunk-progress {
+            display: flex;
+            gap: 3px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        .chunk {
+            width: 15px;
+            height: 15px;
+            background-color: #f0f0f0;
+            border-radius: 2px;
+            transition: background-color 0.3s ease;
+            position: relative;
+        }
+        .chunk.downloaded {
+            background-color: #4CAF50;
+        }
+        .chunk.downloading {
+            background-color: #2196F3;
+            animation: pulse 1s infinite;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .stat-item {
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>High-Speed ISO Download Optimizer</h1>
+        <div>
+            <input type="text" id="url-input" class="url-input" placeholder="Enter ISO URL">
+            <button id="start-download">Start Download</button>
+            <button id="pause-resume-download" style="display:none;">Pause Download</button>
+        </div>
+        <div class="progress-container">
+            <div class="stats">
+                <div class="stat-item">
+                    <div>Download Speed</div>
+                    <div class="speed-meter">0 MB/s</div>
+                </div>
+                <div class="stat-item">
+                    <div>Active Connections</div>
+                    <div class="connections-meter">0</div>
+                </div>
+                <div class="stat-item">
+                    <div>Estimated Time</div>
+                    <div class="eta-meter">--:--</div>
+                </div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <div class="status">Ready to download...</div>
+            <div class="chunk-progress"></div>
+        </div>
+    </div>
+
+    <script>
+        class DownloadOptimizer {
+            constructor() {
+                this.chunkSize = 5 * 1024 * 1024; // 5MB chunks for more parallel downloads
+                this.maxParallelDownloads = 8; // Increased parallel downloads
+                this.chunks = [];
+                this.activeDownloads = 0;
+                this.downloadedSize = 0;
+                this.totalSize = 0;
+                this.abortController = null;
+                this.startTime = null;
+                this.speedSamples = [];
+                this.retryAttempts = 3;
+                this.retryDelay = 1000;
+                this.paused = false;
+            }
+
+            async startDownload(url) {
+                try {
+                    this.reset();
+                    this.startTime = Date.now();
+                    this.abortController = new AbortController();
+
+                    const supportsRange = await this.checkRangeSupport(url);
+                    if (!supportsRange) {
+                        this.updateStatus('Server does not support range requests. Falling back to single download.');
+                        return this.singleDownload(url);
+                    }
+
+                    const response = await fetch(url, { method: 'HEAD' });
+                    this.totalSize = parseInt(response.headers.get('content-length'), 10);
+
+                    const numberOfChunks = Math.ceil(this.totalSize / this.chunkSize);
+                    this.initializeChunkDisplay(numberOfChunks);
+
+                    for (let i = 0; i < numberOfChunks; i++) {
+                        const start = i * this.chunkSize;
+                        const end = Math.min(start + this.chunkSize - 1, this.totalSize - 1);
+                        this.chunks.push({
+                            start,
+                            end,
+                            downloaded: false,
+                            downloading: false,
+                            retries: 0,
+                            data: null
+                        });
+                    }
+
+                    this.startSpeedometer();
+                    await this.downloadChunksOptimized(url);
+                } catch (error) {
+                    this.updateStatus(`Error: ${error.message}`);
+                }
+            }
+
+            reset() {
+                this.chunks = [];
+                this.downloadedSize = 0;
+                this.activeDownloads = 0;
+                this.speedSamples = [];
+                this.startTime = null;
+                if (this.speedInterval) {
+                    clearInterval(this.speedInterval);
+                }
+            }
+
+            async checkRangeSupport(url) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'HEAD',
+                        signal: this.abortController.signal
+                    });
+                    return response.headers.get('accept-ranges') === 'bytes';
+                } catch (error) {
+                    return false;
+                }
+            }
+
+            async downloadChunksOptimized(url) {
+                const downloadQueue = [];
+                let activePromises = new Set();
+
+                const downloadChunk = async (chunk, index) => {
+                    if (chunk.downloaded || chunk.downloading) return;
+
+                    chunk.downloading = true;
+                    this.updateChunkStatus(index, 'downloading');
+                    this.activeDownloads++;
+                    this.updateConnectionsMeter();
+
+                    try {
+                        const buffer = await this.downloadChunkWithRetry(url, chunk);
+                        chunk.data = buffer;
+                        chunk.downloaded = true;
+                        chunk.downloading = false;
+                        this.downloadedSize += buffer.byteLength;
+                        this.updateProgress(index);
+                    } catch (error) {
+                        chunk.downloading = false;
+                        this.updateStatus(`Chunk ${index} failed: ${error.message}`);
+                    }
+
+                    this.activeDownloads--;
+                    this.updateConnectionsMeter();
+
+                    // Process next chunk from queue if available
+                    if (downloadQueue.length > 0) {
+                        const nextChunk = downloadQueue.shift();
+                        const promise = downloadChunk(nextChunk.chunk, nextChunk.index);
+                        activePromises.add(promise);
+                        promise.finally(() => activePromises.delete(promise));
+                    }
+
+                    // Check if download is complete
+                    if (this.chunks.every(c => c.downloaded)) {
+                        this.combineAndDownload();
+                    }
+                };
+
+                // Initialize download queue and start initial batch
+                this.chunks.forEach((chunk, index) => {
+                    if (index < this.maxParallelDownloads) {
+                        const promise = downloadChunk(chunk, index);
+                        activePromises.add(promise);
+                        promise.finally(() => activePromises.delete(promise));
+                    } else {
+                        downloadQueue.push({ chunk, index });
+                    }
+                });
+
+                // Wait for all downloads to complete
+                while (activePromises.size > 0 || downloadQueue.length > 0) {
+                    await Promise.race([...activePromises]);
+                }
+            }
+
+            async downloadChunkWithRetry(url, chunk, attempt = 0) {
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            Range: `bytes=${chunk.start}-${chunk.end}`,
+                            'Cache-Control': 'no-cache'
+                        },
+                        signal: this.abortController.signal
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    return await response.arrayBuffer();
+                } catch (error) {
+                    if (error.name === 'AbortError') throw error;
+                    if (attempt < this.retryAttempts) {
+                        await new Promise(resolve => setTimeout(resolve, this.retryDelay * (attempt + 1)));
+                        return this.downloadChunkWithRetry(url, chunk, attempt + 1);
+                    }
+                    throw error;
+                }
+            }
+
+            startSpeedometer() {
+                const updateSpeed = () => {
+                    const currentTime = Date.now();
+                    const elapsedSeconds = (currentTime - this.startTime) / 1000;
+                    const speedMBps = (this.downloadedSize / (1024 * 1024)) / elapsedSeconds;
+
+                    // Update speed meter
+                    document.querySelector('.speed-meter').textContent =
+                        `${speedMBps.toFixed(2)} MB/s`;
+
+                    // Update ETA
+                    if (speedMBps > 0) {
+                        const remainingBytes = this.totalSize - this.downloadedSize;
+                        const remainingSeconds = remainingBytes / (speedMBps * 1024 * 1024);
+                        const minutes = Math.floor(remainingSeconds / 60);
+                        const seconds = Math.floor(remainingSeconds % 60);
+                        document.querySelector('.eta-meter').textContent =
+                            `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                    }
+                };
+
+                this.speedInterval = setInterval(updateSpeed, 1000);
+            }
+
+            updateConnectionsMeter() {
+                document.querySelector('.connections-meter').textContent =
+                    this.activeDownloads.toString();
+            }
+
+            combineAndDownload() {
+                const blob = new Blob(
+                    this.chunks.map(chunk => chunk.data),
+                    { type: 'application/octet-stream' }
+                );
+                this.saveFile(blob);
+                clearInterval(this.speedInterval);
+            }
+
+            saveFile(blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'windows.iso';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                this.updateStatus('Download complete!');
+            }
+
+            updateProgress(chunkIndex = -1) {
+                const progress = (this.downloadedSize / this.totalSize) * 100;
+                document.querySelector('.progress-fill').style.width = `${progress}%`;
+                this.updateStatus(`Downloaded: ${this.formatSize(this.downloadedSize)} of ${this.formatSize(this.totalSize)} (${progress.toFixed(1)}%)`);
+
+                if (chunkIndex >= 0) {
+                    const chunkElements = document.querySelectorAll('.chunk');
+                    chunkElements[chunkIndex].classList.remove('downloading');
+                    chunkElements[chunkIndex].classList.add('downloaded');
+                }
+            }
+
+            updateChunkStatus(index, status) {
+                const chunkElements = document.querySelectorAll('.chunk');
+                if (status === 'downloading') {
+                    chunkElements[index].classList.add('downloading');
+                }
+            }
+
+            initializeChunkDisplay(numberOfChunks) {
+                const container = document.querySelector('.chunk-progress');
+                container.innerHTML = '';
+                for (let i = 0; i < numberOfChunks; i++) {
+                    const chunk = document.createElement('div');
+                    chunk.className = 'chunk';
+                    container.appendChild(chunk);
+                }
+            }
+
+            updateStatus(message) {
+                document.querySelector('.status').textContent = message;
+            }
+
+            formatSize(bytes) {
+                const units = ['B', 'KB', 'MB', 'GB'];
+                let size = bytes;
+                let unitIndex = 0;
+                while (size >= 1024 && unitIndex < units.length - 1) {
+                    size /= 1024;
+                    unitIndex++;
+                }
+                return `${size.toFixed(2)} ${units[unitIndex]}`;
+            }
+
+            abort() {
+                if (this.abortController) {
+                    this.abortController.abort();
+                    this.updateStatus('Download cancelled');
+                    clearInterval(this.speedInterval);
+                }
+            }
+
+            pause() {
+                this.paused = true;
+                this.updateStatus('Download paused');
+                this.abortController.abort();
+                clearInterval(this.speedInterval);
+            }
+
+            resume() {
+                this.paused = false;
+                this.updateStatus('Resuming download...');
+                this.startDownload(urlInput.value.trim());
+            }
+        }
+
+        // Initialize the download optimizer
+        const downloadOptimizer = new DownloadOptimizer();
+        const startButton = document.getElementById('start-download');
+        const pauseResumeButton = document.getElementById('pause-resume-download');
+        const urlInput = document.getElementById('url-input');
+
+        startButton.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            if (!url) {
+                downloadOptimizer.updateStatus('Please enter a valid URL');
+                return;
+            }
+
+            try {
+                startButton.disabled = true;
+                startButton.textContent = 'Downloading...';
+                pauseResumeButton.style.display = 'inline-block';
+                pauseResumeButton.textContent = 'Pause Download';
+                await downloadOptimizer.startDownload(url);
+            } catch (error) {
+                downloadOptimizer.updateStatus(`Error: ${error.message}`);
+            } finally {
+                startButton.disabled = false;
+                startButton.textContent = 'Start Download';
+                pauseResumeButton.style.display = 'none';
+            }
+        });
+
+        pauseResumeButton.addEventListener('click', () => {
+            if (downloadOptimizer.paused) {
+                downloadOptimizer.resume();
+                pauseResumeButton.textContent = 'Pause Download';
+            } else {
+                downloadOptimizer.pause();
+                pauseResumeButton.textContent = 'Resume Download';
+            }
+        });
+
+        // Set default Windows 11 ISO URL
+        urlInput.value = 'https://software.download.prss.microsoft.com/dbazure/Win11_24H2_English_x64.iso?t=c2061760-b815-4c7d-8dac-0a96dfdf6cae&P1=1737378181&P2=601&P3=2&P4=TCpPIcQGrt5RpPbccVLulxsXTLc9KrHgFBEbaoKKjKj7qnDj1SCckyA12wuvz3UmrKV512FUmZFu%2bIUEr3OzvLO1XaE%2bkdaBD4rEa0pLspud8gfABuQ8pxay6UyD0D%2fGFZnbaRNFWRlXXO0xal4JOjFiDDTQBAeO%2bFBX9eDdeL8xt59poizWNZHVvdFZ1a5iNrm7lXeCfkKqP55TzWLcm4Pv0%2baMz%2bcQn4RoQ78JFJYipZJZgstYPhVTPW7DZd9Z4VDFsy1njc8V8trgv7NrEISxZ059Wi4BkaxqZBgfBNlBUaSPwOZ5MbXUUfGy8R0yBNwTsS3Zioge4WBWhA2OoA%3d%3d';
+
+        // Add keyboard shortcut for starting download (Enter key)
+        urlInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter' && !startButton.disabled) {
+                startButton.click();
+            }
+        });
+
+        // Add beforeunload event to warn user if download is in progress
+        window.addEventListener('beforeunload', (event) => {
+            if (downloadOptimizer.activeDownloads > 0) {
+                event.preventDefault();
+                event.returnValue = 'Download is in progress. Are you sure you want to leave?';
+                return event.returnValue;
+            }
+        });
+    </script>
+</body>
+</html>
